@@ -167,9 +167,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// === Config: set this to your deployed Cloudflare Worker URL ===
-// Example: "https://hello-page-api.<your-subdomain>.workers.dev"
-const API_BASE = "";
+// === Config: Aliyun OSS direct (no backend) ===
+const OSS_BUCKET = "hello-page-xingjia";
+const OSS_REGION = "oss-cn-beijing";
+const OSS_BASE   = `https://${OSS_BUCKET}.${OSS_REGION}.aliyuncs.com`;
+const OSS_PREFIX = "contrib/";
 
 const OFFICIAL_COUNT = 10;
 
@@ -245,19 +247,41 @@ function loadOfficial(){
   }
 }
 
-async function loadContrib(){
-  if (!API_BASE){
-    contribWrap.innerHTML = `<div class="empty">
-      投稿功能即将上线 · 配置 Worker 后这里会显示大家投稿的图~
-    </div>`;
-    contribCount.textContent = "";
-    return;
+function parseKey(key){
+  const fname = key.slice(OSS_PREFIX.length);
+  const parts = fname.split("~");
+  // <ts>~<nickname>~<id>.<ext>
+  if (parts.length === 3 && /^\d+$/.test(parts[0])){
+    return { ts: parseInt(parts[0], 10), nickname: parts[1] || "匿名" };
   }
+  return { ts: 0, nickname: "匿名" };
+}
+
+async function loadContrib(){
   try{
-    const r = await fetch(API_BASE + "/list", { cache: "no-store" });
-    if (!r.ok) throw new Error("list " + r.status);
-    const j = await r.json();
-    const items = j.items || [];
+    const r = await fetch(`${OSS_BASE}/?prefix=${encodeURIComponent(OSS_PREFIX)}&max-keys=1000`,
+                          { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const xml = await r.text();
+    const doc = new DOMParser().parseFromString(xml, "text/xml");
+    const nodes = doc.querySelectorAll("Contents");
+    const items = [];
+    nodes.forEach(n => {
+      const keyEl = n.querySelector("Key");
+      if (!keyEl) return;
+      const key = keyEl.textContent;
+      if (!key || key.endsWith("/")) return;
+      const lastModEl = n.querySelector("LastModified");
+      const lmTs = lastModEl ? new Date(lastModEl.textContent).getTime() : 0;
+      const meta = parseKey(key);
+      items.push({
+        key,
+        url: `${OSS_BASE}/${key}`,
+        nickname: meta.nickname,
+        ts: meta.ts || lmTs,
+      });
+    });
+    items.sort((a, b) => b.ts - a.ts);
     contribCount.textContent = `· ${items.length} 张`;
     if (items.length === 0){
       contribWrap.innerHTML = `<div class="empty">还没人投稿，做第一个 🌟</div>`;
@@ -266,7 +290,7 @@ async function loadContrib(){
     const grid = document.createElement("div");
     grid.className = "grid";
     for (const it of items){
-      grid.appendChild(makeCard(API_BASE + it.url, "by " + (it.nickname || "匿名")));
+      grid.appendChild(makeCard(it.url, "by " + it.nickname));
     }
     contribWrap.innerHTML = "";
     contribWrap.appendChild(grid);
@@ -338,23 +362,31 @@ drop.addEventListener("drop", e => {
   setPicked(e.dataTransfer.files[0]);
 });
 
+function sanitizeNick(raw){
+  // ban path/url-breaking chars + the "~" separator + whitespace; allow Chinese, emoji, letters
+  return (raw || "").trim().slice(0, 20).replace(/[~\/\\?#&\s]/g, "-") || "匿名";
+}
+
+async function uploadToOSS(file, nick){
+  const ext = file.type.split("/")[1].replace("jpeg", "jpg");
+  const ts  = Date.now();
+  const id  = Math.random().toString(36).slice(2, 12);
+  const key = `${OSS_PREFIX}${ts}~${sanitizeNick(nick)}~${id}.${ext}`;
+  const r = await fetch(`${OSS_BASE}/${key}`, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!r.ok) throw new Error("OSS HTTP " + r.status);
+  return key;
+}
+
 submitBtn.addEventListener("click", async () => {
   if (!picked) return;
-  if (!API_BASE){
-    msgEl.textContent = "后端还没配置，暂时无法上传";
-    return;
-  }
   submitBtn.disabled = true;
   submitBtn.textContent = "上传中...";
   try{
-    const fd = new FormData();
-    fd.append("file", picked);
-    fd.append("nickname", nickname.value.trim());
-    const r = await fetch(API_BASE + "/upload", { method: "POST", body: fd });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok || j.error){
-      throw new Error(j.error || ("HTTP " + r.status));
-    }
+    await uploadToOSS(picked, nickname.value.trim());
     modal.classList.remove("show");
     showToast("投稿成功，谢谢分享 ♥");
     loadContrib();
