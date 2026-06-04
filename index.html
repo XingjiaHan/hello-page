@@ -32,10 +32,22 @@
   body[data-time=evening] .card{background:rgba(255,255,255,.78)}
   @keyframes pop{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
   .face{font-size:48px;margin-bottom:16px;letter-spacing:2px;}
-  .face img{display:block;margin:0 auto;max-width:160px;max-height:160px;
-    border-radius:18px;box-shadow:0 6px 18px rgba(0,0,0,.12);
-    object-fit:contain;}
-  body[data-time=night] .face img{box-shadow:0 6px 18px rgba(255,255,255,.08),0 0 30px rgba(180,150,255,.15)}
+
+  /* Floating meme sticker on the right */
+  .meme-side{position:fixed;right:4vw;top:50%;transform:translateY(-50%);
+    z-index:20;max-width:200px;max-height:60vh;
+    border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.15);
+    object-fit:contain;opacity:0;transition:opacity .6s;
+    animation:memeFloat 5s ease-in-out infinite;}
+  .meme-side.show{opacity:1;}
+  @keyframes memeFloat{0%,100%{transform:translateY(-50%)}50%{transform:translateY(calc(-50% - 8px))}}
+  body[data-time=night] .meme-side{box-shadow:0 10px 30px rgba(0,0,0,.4),0 0 30px rgba(180,150,255,.15)}
+  @media (max-width:780px){
+    .meme-side{position:static;display:block;margin:14px auto 0;
+      transform:none;animation:none;max-width:140px;max-height:140px;}
+    .meme-side.show{opacity:1;}
+    @keyframes memeFloatM{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  }
   .hello{font-size:28px;color:#444;margin:8px 0;}
   .name{color:#ff6b9d;font-weight:600;}
   body[data-time=night] .name{color:#ffb3d9;text-shadow:0 0 8px rgba(255,150,200,.5)}
@@ -131,8 +143,10 @@
   </div>
   <div class="footer">made with love by hanxingjia</div>
 </div>
+<img class="meme-side" id="meme" alt="表情包">
 <div class="visits" id="visits"></div>
 <script>
+const faces=["ฅ^•ﻌ•^ฅ"];
 const MEME_COUNT=10;
 function pickMeme(){
   const n=String(1+Math.floor(Math.random()*MEME_COUNT)).padStart(2,"0");
@@ -157,12 +171,10 @@ function render(){
   const [bucket,t]=timeBucket(h);
   document.body.dataset.time=bucket;
   const name=new URLSearchParams(location.search).get("name")||"朋友";
-  const faceEl=document.getElementById("face");
-  faceEl.textContent="";
-  const img=document.createElement("img");
-  img.src=pickMeme();
-  img.alt="表情包";
-  faceEl.appendChild(img);
+  document.getElementById("face").textContent=faces[Math.floor(Math.random()*faces.length)];
+  const memeEl=document.getElementById("meme");
+  memeEl.src=pickMeme();
+  memeEl.classList.add("show");
   // XSS-safe: build with DOM, no innerHTML on user input
   const helloEl=document.getElementById("hello");
   helloEl.textContent=t+"，";
