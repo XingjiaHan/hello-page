@@ -49,6 +49,16 @@
     padding:4px 10px;border-radius:999px;font-size:11px;cursor:pointer;
     text-decoration:none;display:inline-block;}
   .dl:hover{background:#ff6b9d;color:#fff;}
+  .del-btn{position:absolute;top:6px;right:6px;width:24px;height:24px;
+    border:none;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;
+    font-size:13px;cursor:pointer;line-height:1;z-index:5;display:none;}
+  body.admin .del-btn{display:flex;align-items:center;justify-content:center;}
+  .del-btn:hover{background:#ff3b5c;}
+  .admin-badge{display:none;align-items:center;gap:6px;font-size:12px;color:#ff5491;
+    margin-right:8px;}
+  body.admin .admin-badge{display:inline-flex;}
+  .admin-badge button{border:none;background:rgba(255,107,157,.15);color:#ff5491;
+    padding:3px 10px;border-radius:999px;font-size:11px;cursor:pointer;}
 
   .empty{padding:30px;text-align:center;color:#bbb;font-size:13px;
     background:rgba(255,255,255,.4);border-radius:14px;border:1px dashed rgba(0,0,0,.06);}
@@ -109,7 +119,13 @@
 <body>
 <div class="topbar">
   <a class="back" href="./">← 回首页</a>
-  <button class="contribute" id="contributeBtn">+ 我也想贡献</button>
+  <div style="display:flex;align-items:center;">
+    <span class="admin-badge">
+      🔑 管理员
+      <button id="adminLogoutBtn">退出</button>
+    </span>
+    <button class="contribute" id="contributeBtn">+ 我也想贡献</button>
+  </div>
 </div>
 
 <main>
@@ -139,6 +155,22 @@
   <img id="lbImg" alt="">
   <div class="lb-actions">
     <a id="lbDownload" download>下载</a>
+  </div>
+</div>
+
+<div class="modal" id="adminModal">
+  <div class="box" onclick="event.stopPropagation()">
+    <h2>管理员登录</h2>
+    <div class="hint">填入 RAM 子账号的 AccessKey · 仅存在你本机浏览器（localStorage），不上传任何地方</div>
+    <label>AccessKey ID</label>
+    <input type="text" id="akId" placeholder="LTAI...">
+    <label>AccessKey Secret</label>
+    <input type="text" id="akSecret" placeholder="（输入即可，不会被任何人看到）">
+    <div class="msg" id="adminMsg"></div>
+    <div class="btns">
+      <button class="cancel" id="adminCancel">取消</button>
+      <button class="submit" id="adminSave">保存</button>
+    </div>
   </div>
 </div>
 
@@ -210,7 +242,7 @@ function suggestedName(src){
   return base || "meme.jpg";
 }
 
-function makeCard(src, uploader){
+function makeCard(src, uploader, deletableKey){
   const card = document.createElement("div");
   card.className = "card";
   const wrap = document.createElement("div");
@@ -236,6 +268,18 @@ function makeCard(src, uploader){
   meta.append(who, dl);
 
   card.append(wrap, meta);
+
+  if (deletableKey){
+    const del = document.createElement("button");
+    del.className = "del-btn";
+    del.textContent = "✕";
+    del.title = "删除这张";
+    del.addEventListener("click", e => {
+      e.stopPropagation();
+      deleteContrib(deletableKey);
+    });
+    card.appendChild(del);
+  }
   return card;
 }
 
@@ -290,7 +334,7 @@ async function loadContrib(){
     const grid = document.createElement("div");
     grid.className = "grid";
     for (const it of items){
-      grid.appendChild(makeCard(it.url, "by " + it.nickname));
+      grid.appendChild(makeCard(it.url, "by " + it.nickname, it.key));
     }
     contribWrap.innerHTML = "";
     contribWrap.appendChild(grid);
@@ -396,6 +440,102 @@ submitBtn.addEventListener("click", async () => {
     submitBtn.textContent = "提交";
   }
 });
+
+// ---- Admin mode (delete buttons on contrib cards) ----
+const ADMIN_MODE = new URLSearchParams(location.search).has("admin")
+                  || localStorage.getItem("oss_ak_id");
+const adminModal = document.getElementById("adminModal");
+const adminMsg = document.getElementById("adminMsg");
+const akIdEl = document.getElementById("akId");
+const akSecretEl = document.getElementById("akSecret");
+
+if (ADMIN_MODE) document.body.classList.add("admin");
+
+document.getElementById("adminLogoutBtn").addEventListener("click", () => {
+  if (!confirm("清掉本机存的 AccessKey？")) return;
+  localStorage.removeItem("oss_ak_id");
+  localStorage.removeItem("oss_ak_secret");
+  document.body.classList.remove("admin");
+  ossClient = null;
+  showToast("已退出管理员");
+});
+
+document.getElementById("adminCancel").addEventListener("click", () => {
+  adminModal.classList.remove("show");
+});
+adminModal.addEventListener("click", e => {
+  if (e.target === adminModal) adminModal.classList.remove("show");
+});
+
+document.getElementById("adminSave").addEventListener("click", () => {
+  const id = akIdEl.value.trim();
+  const secret = akSecretEl.value.trim();
+  if (!id || !secret){ adminMsg.textContent = "两个都要填"; return; }
+  localStorage.setItem("oss_ak_id", id);
+  localStorage.setItem("oss_ak_secret", secret);
+  ossClient = null;
+  document.body.classList.add("admin");
+  adminModal.classList.remove("show");
+  showToast("管理员模式已开启");
+  akIdEl.value = ""; akSecretEl.value = ""; adminMsg.textContent = "";
+});
+
+let ossSDKLoading = null;
+function loadOSSSDK(){
+  if (window.OSS) return Promise.resolve();
+  if (ossSDKLoading) return ossSDKLoading;
+  ossSDKLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://gosspublic.alicdn.com/aliyun-oss-sdk-6.18.0.min.js";
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("SDK 加载失败"));
+    document.head.appendChild(s);
+  });
+  return ossSDKLoading;
+}
+
+let ossClient = null;
+async function getOSSClient(){
+  if (ossClient) return ossClient;
+  const id = localStorage.getItem("oss_ak_id");
+  const secret = localStorage.getItem("oss_ak_secret");
+  if (!id || !secret) return null;
+  await loadOSSSDK();
+  ossClient = new OSS({
+    region: OSS_REGION,
+    accessKeyId: id,
+    accessKeySecret: secret,
+    bucket: OSS_BUCKET,
+    secure: true,
+  });
+  return ossClient;
+}
+
+async function deleteContrib(key){
+  if (!confirm("删除这张图？")) return;
+  try{
+    const client = await getOSSClient();
+    if (!client){
+      akIdEl.value = ""; akSecretEl.value = ""; adminMsg.textContent = "";
+      adminModal.classList.add("show");
+      return;
+    }
+    await client.delete(key);
+    showToast("已删除");
+    loadContrib();
+  }catch(e){
+    if (e.code === "InvalidAccessKeyId" || e.code === "SignatureDoesNotMatch"
+        || e.status === 403){
+      localStorage.removeItem("oss_ak_id");
+      localStorage.removeItem("oss_ak_secret");
+      ossClient = null;
+      adminMsg.textContent = "AccessKey 无效或被拒，重新填一下";
+      adminModal.classList.add("show");
+    } else {
+      alert("删除失败: " + (e.message || e.code || e));
+    }
+  }
+}
 
 // init
 loadOfficial();
