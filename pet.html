@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>云养猫 🐱 by hanxingjia</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(135deg,#ffe5f0,#fff5e6,#e6f0ff);
+    background-size:300% 300%;animation:bg 18s ease infinite;
+    user-select:none;}
+  @keyframes bg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .back{position:fixed;top:14px;right:14px;z-index:20;
+    background:rgba(255,255,255,.7);backdrop-filter:blur(8px);
+    border:none;border-radius:999px;padding:6px 14px;font-size:13px;
+    color:#666;text-decoration:none;}
+
+  .card{background:rgba(255,255,255,.88);backdrop-filter:blur(12px);
+    border-radius:24px;padding:28px 30px 24px;box-shadow:0 20px 60px rgba(0,0,0,.08);
+    width:460px;max-width:94vw;}
+  h1{margin:0 0 4px;font-size:22px;color:#444;font-weight:600;text-align:center;}
+  h1 .name{color:#ff6b9d;}
+  .welcome{font-size:12px;color:#a48fa8;text-align:center;min-height:16px;margin-bottom:14px;}
+
+  .stats{display:flex;gap:10px;margin-bottom:16px;}
+  .stat{flex:1;}
+  .stat .lbl{display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:3px;}
+  .stat .bar{height:7px;background:rgba(0,0,0,.05);border-radius:999px;overflow:hidden;}
+  .stat .bar>div{height:100%;border-radius:999px;transition:width .5s;}
+  .stat.mood   .bar>div{background:linear-gradient(90deg,#ffb3d9,#ff6b9d);}
+  .stat.hunger .bar>div{background:linear-gradient(90deg,#ffd9a0,#ff9d4a);}
+  .stat.energy .bar>div{background:linear-gradient(90deg,#aee0ff,#5fb3ff);}
+
+  .room{position:relative;height:300px;border-radius:18px;overflow:hidden;
+    background:linear-gradient(180deg,#fff4f8 0%,#fff4f8 70%,#f0d6b8 70%,#f0d6b8 100%);
+    box-shadow:inset 0 -8px 16px rgba(200,150,100,.15);}
+  /* window */
+  .room::before{content:"";position:absolute;top:18px;right:24px;width:90px;height:80px;
+    background:linear-gradient(180deg,#a0d8ff,#dde9ff);border:4px solid #fff;border-radius:6px;
+    box-shadow:0 4px 10px rgba(0,0,0,.06);}
+  /* sun */
+  .room::after{content:"";position:absolute;top:36px;right:54px;width:24px;height:24px;
+    border-radius:50%;background:radial-gradient(circle,#ffec99,#ffcc66);}
+
+  .cat{position:absolute;font-size:74px;line-height:1;cursor:pointer;
+    transition:left 2.4s ease-in-out, top 2.4s ease-in-out;
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.15));}
+  .cat.react{animation:bounce .35s ease;}
+  @keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+
+  .bubble{position:absolute;background:#fff;color:#444;font-size:13px;
+    padding:5px 12px;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,.1);
+    opacity:0;transition:opacity .3s;pointer-events:none;transform:translateX(-50%);
+    white-space:nowrap;z-index:10;}
+  .bubble.show{opacity:1;}
+  .bubble::after{content:"";position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);
+    border:5px solid transparent;border-top-color:#fff;}
+
+  .ball{position:absolute;font-size:24px;pointer-events:none;
+    transition:left 1.1s cubic-bezier(.4,1.5,.5,1), top 1.1s cubic-bezier(.4,1.5,.5,1);
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.2));}
+
+  .fheart{position:absolute;pointer-events:none;font-size:22px;font-weight:bold;
+    animation:floatup 1.4s ease-out forwards;}
+  @keyframes floatup{
+    0%{opacity:0;transform:translate(-50%,0) scale(.5)}
+    25%{opacity:1;transform:translate(-50%,-20px) scale(1.2)}
+    100%{opacity:0;transform:translate(calc(-50% + var(--dx,0)),-90px) scale(.8)}
+  }
+
+  .actions{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap;}
+  .actions button{padding:10px 20px;border:none;border-radius:999px;
+    background:#ff6b9d;color:#fff;font-size:14px;cursor:pointer;
+    box-shadow:0 4px 12px rgba(255,107,157,.3);transition:transform .15s;}
+  .actions button:hover{transform:scale(1.05);background:#ff5491;}
+  .actions button:disabled{background:#ddd;color:#888;cursor:not-allowed;
+    box-shadow:none;transform:none;}
+
+  .footer{margin-top:14px;font-size:11px;color:#bbb;text-align:center;}
+  .footer .reset{color:#bbb;text-decoration:underline;cursor:pointer;margin-left:6px;}
+</style>
+</head>
+<body>
+<a class="back" href="./">← 回首页</a>
+
+<div class="card">
+  <h1>我家的 <span class="name" id="catName">咪咪</span> 🐾</h1>
+  <div class="welcome" id="welcome"></div>
+
+  <div class="stats">
+    <div class="stat mood">
+      <div class="lbl"><span>心情</span><span id="moodNum">100</span></div>
+      <div class="bar"><div id="moodBar" style="width:100%"></div></div>
+    </div>
+    <div class="stat hunger">
+      <div class="lbl"><span>饱腹</span><span id="hungerNum">100</span></div>
+      <div class="bar"><div id="hungerBar" style="width:100%"></div></div>
+    </div>
+    <div class="stat energy">
+      <div class="lbl"><span>精力</span><span id="energyNum">100</span></div>
+      <div class="bar"><div id="energyBar" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <div class="room" id="room">
+    <div class="cat" id="cat">😺</div>
+    <div class="bubble" id="bubble"></div>
+  </div>
+
+  <div class="actions">
+    <button id="petBtn">摸摸 🤚</button>
+    <button id="feedBtn">喂饭 🍱</button>
+    <button id="playBtn">扔球 🎾</button>
+  </div>
+
+  <div class="footer">每次访问自动续状态 ・
+    <span class="reset" id="resetBtn">重置</span>
+  </div>
+</div>
+
+<script>
+const cat       = document.getElementById("cat");
+const bubble    = document.getElementById("bubble");
+const room      = document.getElementById("room");
+const welcomeEl = document.getElementById("welcome");
+const moodBar   = document.getElementById("moodBar");
+const hungerBar = document.getElementById("hungerBar");
+const energyBar = document.getElementById("energyBar");
+const moodNum   = document.getElementById("moodNum");
+const hungerNum = document.getElementById("hungerNum");
+const energyNum = document.getElementById("energyNum");
+const playBtn   = document.getElementById("playBtn");
+
+// stats per real minute
+const DECAY = { mood: 0.20, hunger: 0.40, energy: 0.12 };
+const SLEEP_RECOVERY = 3;  // energy gain per minute when sleeping
+
+function loadStats(){
+  try{
+    const s = JSON.parse(localStorage.getItem("pet_stats"));
+    if (s && typeof s.mood === "number") return s;
+  }catch(_){}
+  return { mood: 90, hunger: 90, energy: 90 };
+}
+function clamp(){
+  for (const k of ["mood","hunger","energy"])
+    stats[k] = Math.max(0, Math.min(100, stats[k]));
+}
+function save(){
+  localStorage.setItem("pet_stats", JSON.stringify(stats));
+  localStorage.setItem("pet_lastVisit", String(Date.now()));
+}
+
+const stats = loadStats();
+const lastVisit = parseInt(localStorage.getItem("pet_lastVisit") || Date.now(), 10);
+const elapsedMin = Math.max(0, (Date.now() - lastVisit) / 60000);
+
+// AFK decay
+const wasSleeping = stats.energy < 15;
+if (wasSleeping){
+  stats.energy += SLEEP_RECOVERY * elapsedMin;
+  stats.mood   -= DECAY.mood   * elapsedMin;
+  stats.hunger -= DECAY.hunger * elapsedMin;
+} else {
+  stats.mood   -= DECAY.mood   * elapsedMin;
+  stats.hunger -= DECAY.hunger * elapsedMin;
+  stats.energy -= DECAY.energy * elapsedMin;
+}
+clamp();
+
+// welcome message
+function fmtElapsed(min){
+  if (min < 60)        return `${Math.round(min)} 分钟`;
+  if (min < 60*24)     return `${(min/60).toFixed(1)} 小时`;
+  return `${Math.floor(min/60/24)} 天`;
+}
+if (elapsedMin >= 3){
+  let msg;
+  if (stats.hunger < 25 && stats.mood < 35)
+    msg = `你走了 ${fmtElapsed(elapsedMin)}，咪咪又饿又委屈 😿`;
+  else if (stats.hunger < 30)
+    msg = `${fmtElapsed(elapsedMin)} 没回来，咪咪饿啦`;
+  else if (stats.mood < 35)
+    msg = `${fmtElapsed(elapsedMin)} 没人陪，咪咪不开心`;
+  else if (wasSleeping && stats.energy > 80)
+    msg = `咪咪睡了一觉，元气满满 ✨`;
+  else
+    msg = `欢迎回来 ~ 离开了 ${fmtElapsed(elapsedMin)}`;
+  welcomeEl.textContent = msg;
+}
+
+function face(){
+  if (stats.energy < 15) return "😴";
+  if (stats.hunger < 20) return "🙀";
+  if (stats.mood   < 25) return "😿";
+  if (stats.mood > 70 && stats.hunger > 50) return "😻";
+  return "😺";
+}
+
+function updateUI(){
+  moodBar.style.width   = stats.mood   + "%";
+  hungerBar.style.width = stats.hunger + "%";
+  energyBar.style.width = stats.energy + "%";
+  moodNum.textContent   = Math.round(stats.mood);
+  hungerNum.textContent = Math.round(stats.hunger);
+  energyNum.textContent = Math.round(stats.energy);
+  cat.textContent = face();
+  playBtn.disabled = stats.energy < 25;
+}
+
+function showBubble(text, dur=1800){
+  const cx = cat.offsetLeft + cat.offsetWidth/2;
+  const cy = cat.offsetTop;
+  bubble.style.left = cx + "px";
+  bubble.style.top  = (cy - 30) + "px";
+  bubble.textContent = text;
+  bubble.classList.add("show");
+  clearTimeout(showBubble._t);
+  showBubble._t = setTimeout(() => bubble.classList.remove("show"), dur);
+}
+
+function spawnHearts(){
+  for (let i = 0; i < 5; i++){
+    const h = document.createElement("div");
+    h.className = "fheart";
+    h.textContent = ["♥","♡","✿","✦"][Math.floor(Math.random()*4)];
+    h.style.left = (cat.offsetLeft + cat.offsetWidth/2 + (Math.random()*40-20)) + "px";
+    h.style.top  = (cat.offsetTop + 10) + "px";
+    h.style.color = ["#ff6b9d","#ffb3d9","#ff5491","#ffc1d8"][Math.floor(Math.random()*4)];
+    h.style.fontSize = (18 + Math.random()*10) + "px";
+    h.style.setProperty("--dx", (Math.random()*70-35) + "px");
+    room.appendChild(h);
+    setTimeout(() => h.remove(), 1400);
+  }
+}
+
+function react(emoji, text, dur=1500){
+  cat.textContent = emoji;
+  cat.classList.add("react");
+  setTimeout(() => cat.classList.remove("react"), 360);
+  showBubble(text, dur);
+  setTimeout(updateUI, dur);
+}
+
+function moveCat(){
+  if (stats.energy < 15) return;
+  const maxX = room.clientWidth  - 80;
+  const maxY = room.clientHeight - 100;
+  cat.style.left = (10 + Math.random()*(maxX-20)) + "px";
+  cat.style.top  = (40 + Math.random()*(maxY-50)) + "px";
+}
+
+function pet(){
+  stats.mood   += 12;
+  stats.energy -= 1;
+  clamp(); save(); updateUI();
+  react("😻", "咕噜咕噜~");
+  spawnHearts();
+}
+function feed(){
+  stats.hunger += 30;
+  stats.mood   += 4;
+  clamp(); save(); updateUI();
+  react("😋", "好吃！", 1800);
+}
+function play(){
+  if (stats.energy < 25){ showBubble("咪咪太累啦 zzz"); return; }
+  stats.energy -= 22;
+  stats.mood   += 10;
+  stats.hunger -= 5;
+  clamp(); save(); updateUI();
+
+  const ball = document.createElement("div");
+  ball.className = "ball";
+  ball.textContent = "🎾";
+  const startX = 16;
+  const startY = room.clientHeight - 40;
+  ball.style.left = startX + "px";
+  ball.style.top  = startY + "px";
+  room.appendChild(ball);
+
+  const tx = 20 + Math.random()*(room.clientWidth - 100);
+  const ty = 40 + Math.random()*(room.clientHeight - 120);
+  requestAnimationFrame(() => {
+    ball.style.left = tx + "px";
+    ball.style.top  = ty + "px";
+  });
+
+  setTimeout(() => {
+    cat.style.left = tx + "px";
+    cat.style.top  = ty + "px";
+    cat.textContent = "😼";
+  }, 900);
+  setTimeout(() => {
+    ball.remove();
+    react("😻", "玩耍超开心！");
+  }, 2400);
+}
+
+// initial position
+cat.style.left = "60px";
+cat.style.top  = "150px";
+updateUI();
+save();
+
+// cat wanders
+setInterval(moveCat, 7000);
+setTimeout(moveCat, 1500);
+
+// slow decay on-screen + auto-save
+setInterval(() => {
+  if (stats.energy < 15){
+    stats.energy += SLEEP_RECOVERY / 6;  // per 10s
+  } else {
+    stats.energy -= DECAY.energy / 6;
+  }
+  stats.mood   -= DECAY.mood   / 6;
+  stats.hunger -= DECAY.hunger / 6;
+  clamp(); save(); updateUI();
+}, 10000);
+
+cat.addEventListener("click", pet);
+document.getElementById("petBtn").addEventListener("click", pet);
+document.getElementById("feedBtn").addEventListener("click", feed);
+document.getElementById("playBtn").addEventListener("click", play);
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("真的要让咪咪重新出生吗？")) return;
+  localStorage.removeItem("pet_stats");
+  localStorage.removeItem("pet_lastVisit");
+  location.reload();
+});
+
+window.addEventListener("beforeunload", save);
+window.addEventListener("pagehide", save);
+</script>
+</body>
+</html>

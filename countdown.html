@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>距下班 ⏰ by hanxingjia</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(135deg,#ffd6e8,#c5e0ff,#ffe5b4,#ffd6e8);
+    background-size:300% 300%;animation:bg 16s ease infinite;
+    overflow-x:hidden;}
+  @keyframes bg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .back{position:fixed;top:14px;right:14px;z-index:20;
+    background:rgba(255,255,255,.7);backdrop-filter:blur(8px);
+    border:none;border-radius:999px;padding:6px 14px;font-size:13px;
+    color:#666;text-decoration:none;}
+  .card{background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
+    border-radius:24px;padding:36px 40px;box-shadow:0 20px 60px rgba(0,0,0,.08);
+    text-align:center;max-width:92vw;width:420px;}
+  .label{font-size:15px;color:#999;letter-spacing:2px;}
+  .timer{font-family:"SF Mono","Menlo","Consolas",monospace;font-weight:600;
+    font-size:64px;color:#ff5491;margin:14px 0 4px;
+    letter-spacing:1px;text-shadow:0 4px 18px rgba(255,107,157,.25);}
+  .unit{color:#bbb;font-size:12px;letter-spacing:6px;margin-bottom:18px;}
+  .bar{height:8px;background:rgba(255,107,157,.12);border-radius:999px;overflow:hidden;
+    margin:18px 0;}
+  .bar>div{height:100%;background:linear-gradient(90deg,#ffb3d9,#ff6b9d);
+    border-radius:999px;transition:width .3s;width:0;}
+  .moneyLabel{font-size:13px;color:#888;margin-top:24px;}
+  .yuan{font-family:"SF Mono",monospace;font-size:34px;color:#3aa55a;font-weight:600;
+    margin:4px 0;letter-spacing:1px;}
+  .settings{margin-top:24px;padding-top:18px;border-top:1px dashed #eedce6;
+    font-size:13px;color:#888;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .settings input{width:90px;padding:5px 10px;border:1px solid #ffd6e8;border-radius:8px;
+    text-align:right;font-family:inherit;font-size:13px;color:#444;background:#fff;outline:none;}
+  .settings input:focus{border-color:#ff6b9d;}
+  .quip{margin-top:14px;font-size:13px;color:#a48fa8;font-style:italic;min-height:18px;}
+
+  /* sakura, lifted from index.html */
+  .petal{position:fixed;top:-30px;width:14px;height:18px;
+    background:linear-gradient(135deg,#ffb3d9,#ffd6e8 60%,#fff0f5);
+    border-radius:150% 0 150% 0;pointer-events:none;z-index:1;
+    box-shadow:inset -1px -2px 3px rgba(255,107,157,.3);
+    animation:fall linear forwards;}
+  @keyframes fall{
+    0%{transform:translate(0,0) rotate(0);opacity:0}
+    8%{opacity:.9}
+    100%{transform:translate(var(--sway,80px),110vh) rotate(720deg);opacity:.6}
+  }
+</style>
+</head>
+<body>
+<a class="back" href="./">← 回首页</a>
+
+<div class="card">
+  <div class="label" id="label">距离下班还有</div>
+  <div class="timer" id="timer">--:--:--</div>
+  <div class="unit">时   分   秒</div>
+  <div class="bar"><div id="prog"></div></div>
+
+  <div class="moneyLabel" id="moneyLabel">今天已赚</div>
+  <div class="yuan" id="yuan">¥ 0.00</div>
+
+  <div class="settings">
+    月薪
+    <input id="salary" type="number" min="0" step="100" value="10000">
+    元 (按 9:00–18:00，21.75 天/月计)
+  </div>
+
+  <div class="quip" id="quip"></div>
+</div>
+
+<script>
+const labelEl  = document.getElementById("label");
+const timerEl  = document.getElementById("timer");
+const progEl   = document.getElementById("prog");
+const yuanEl   = document.getElementById("yuan");
+const mLabelEl = document.getElementById("moneyLabel");
+const salaryEl = document.getElementById("salary");
+const quipEl   = document.getElementById("quip");
+
+const WORK_START = 9;
+const WORK_END   = 18;
+const WORK_HOURS = WORK_END - WORK_START;
+const WORK_DAYS  = 21.75;
+
+const saved = localStorage.getItem("salary");
+if (saved) salaryEl.value = saved;
+salaryEl.addEventListener("input", () => {
+  localStorage.setItem("salary", salaryEl.value);
+  tick();
+});
+
+const pad = n => String(Math.max(0, Math.floor(n))).padStart(2, "0");
+
+const QUIPS_WORK    = ["再撑一会，钱在路上 🚚","抬头看看天，回头继续干","摸一下，老板看不见的那种"];
+const QUIPS_WEEKEND = ["今天躺着也很合理","不上班的日子，连花都开得快一点","快乐周末，钱不重要"];
+const QUIPS_BEFORE  = ["地铁上的你辛苦了 🚇","咖啡先安排好 ☕","通勤路上听点好东西"];
+const QUIPS_OFF     = ["收摊 🎉 今天到此为止","下班的风格外好闻","你今天表现得不错"];
+let lastState = null;
+
+function tick(){
+  const now = new Date();
+  const dow = now.getDay();
+  const start = new Date(now); start.setHours(WORK_START,0,0,0);
+  const end   = new Date(now); end.setHours(WORK_END,0,0,0);
+
+  const salary = parseFloat(salaryEl.value) || 0;
+  const perSec = salary / (WORK_DAYS * WORK_HOURS * 3600);
+
+  let state, remainMs=0, earned=0, prog=0;
+  if (dow === 0 || dow === 6)                       state = "weekend";
+  else if (now < start)                             state = "before";
+  else if (now < end)                               state = "working";
+  else                                              state = "off";
+
+  if (state === "working") {
+    remainMs = end - now;
+    const elapsedSec = (now - start) / 1000;
+    earned = perSec * elapsedSec;
+    prog = elapsedSec / (WORK_HOURS * 3600);
+  } else if (state === "before") {
+    remainMs = start - now;
+  } else if (state === "off") {
+    earned = perSec * WORK_HOURS * 3600;
+    prog = 1;
+  }
+
+  if (state === "weekend") {
+    labelEl.textContent = "今天周末";
+    timerEl.textContent = "( ´ ▽ ` )";
+    yuanEl.textContent = "¥ 0.00";
+    mLabelEl.textContent = "周末不打卡也不赚钱~";
+    progEl.style.width = "0%";
+  } else if (state === "before") {
+    labelEl.textContent = "距离上班还有";
+    const s = remainMs / 1000;
+    timerEl.textContent = `${pad(s/3600)}:${pad((s/60)%60)}:${pad(s%60)}`;
+    yuanEl.textContent = "¥ 0.00";
+    mLabelEl.textContent = "还没开始赚 zzz";
+    progEl.style.width = "0%";
+  } else if (state === "working") {
+    labelEl.textContent = "距离下班还有";
+    const s = remainMs / 1000;
+    timerEl.textContent = `${pad(s/3600)}:${pad((s/60)%60)}:${pad(s%60)}`;
+    yuanEl.textContent = "¥ " + earned.toFixed(2);
+    mLabelEl.textContent = "今天已赚";
+    progEl.style.width = (prog*100).toFixed(2) + "%";
+  } else {
+    labelEl.textContent = "下班啦";
+    timerEl.textContent = "🎉";
+    yuanEl.textContent = "¥ " + earned.toFixed(2);
+    mLabelEl.textContent = "今日入账";
+    progEl.style.width = "100%";
+  }
+
+  if (state !== lastState) {
+    const pool = state === "working" ? QUIPS_WORK
+               : state === "weekend" ? QUIPS_WEEKEND
+               : state === "before"  ? QUIPS_BEFORE
+               : QUIPS_OFF;
+    quipEl.textContent = pool[Math.floor(Math.random()*pool.length)];
+    lastState = state;
+  }
+}
+tick();
+setInterval(tick, 100);
+
+// background petals
+function spawnPetal(){
+  const p = document.createElement("div");
+  p.className = "petal";
+  p.style.left = Math.random()*100 + "vw";
+  const dur = 9 + Math.random()*8;
+  p.style.animationDuration = dur + "s";
+  p.style.setProperty("--sway", (Math.random()*240-120) + "px");
+  const s = .6 + Math.random()*.8;
+  p.style.width  = (12*s) + "px";
+  p.style.height = (16*s) + "px";
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), dur*1000);
+}
+setInterval(spawnPetal, 520);
+for (let i = 0; i < 6; i++) setTimeout(spawnPetal, i*250);
+</script>
+</body>
+</html>
