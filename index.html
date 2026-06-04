@@ -5,31 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>来自 hanxingjia 的小问候 ✿</title>
 <style>
+  *{box-sizing:border-box}
   body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
     font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-    background:linear-gradient(135deg,#ffd6e8 0%,#c5e0ff 50%,#ffe5b4 100%);
-    background-size:400% 400%;animation:bg 12s ease infinite;}
+    overflow:hidden;position:relative;transition:background 1.2s;
+    background-size:400% 400%;animation:bg 14s ease infinite;}
   @keyframes bg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+  /* Time-based palettes */
+  body[data-time=morning]   {background:linear-gradient(135deg,#ffd9b3,#ffe6d5,#cce5ff,#fff5d6)}
+  body[data-time=noon]      {background:linear-gradient(135deg,#b3e0ff,#e6f5ff,#fff9d6,#d6f5e6)}
+  body[data-time=afternoon] {background:linear-gradient(135deg,#ffd6e8,#c5e0ff,#ffe5b4,#ffd6e8)}
+  body[data-time=evening]   {background:linear-gradient(135deg,#ff9ec7,#c489d4,#7b73c1,#3d3270)}
+  body[data-time=night]     {background:linear-gradient(135deg,#0f0a2e,#1a1a3e,#2d1b69,#0a0a1f);animation:none}
+
+  /* Card */
   .card{background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
     border-radius:24px;padding:48px 56px;box-shadow:0 20px 60px rgba(0,0,0,.08);
-    text-align:center;max-width:90vw;animation:pop .6s cubic-bezier(.34,1.56,.64,1);}
+    text-align:center;max-width:90vw;animation:pop .6s cubic-bezier(.34,1.56,.64,1);
+    position:relative;z-index:10;transition:background 1s,color 1s;}
+  body[data-time=night] .card{background:rgba(30,30,60,.55);color:#f0f0ff;
+    box-shadow:0 20px 60px rgba(255,255,255,.05),0 0 80px rgba(180,150,255,.15)}
+  body[data-time=night] .hello{color:#f0f0ff}
+  body[data-time=night] .msg{color:#c9c9e8}
+  body[data-time=night] .footer{color:#9090c0}
+  body[data-time=evening] .card{background:rgba(255,255,255,.78)}
   @keyframes pop{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
   .face{font-size:48px;margin-bottom:16px;letter-spacing:2px;}
   .hello{font-size:28px;color:#444;margin:8px 0;}
   .name{color:#ff6b9d;font-weight:600;}
+  body[data-time=night] .name{color:#ffb3d9;text-shadow:0 0 8px rgba(255,150,200,.5)}
   .msg{font-size:18px;color:#666;margin-top:20px;line-height:1.6;}
   .refresh{margin-top:32px;padding:10px 24px;border:none;border-radius:999px;
     background:#ff6b9d;color:white;font-size:14px;cursor:pointer;transition:transform .2s;}
   .refresh:hover{transform:scale(1.05);background:#ff5491;}
   .footer{margin-top:20px;font-size:12px;color:#aaa;}
+
+  /* Sakura petals */
+  .petal{position:fixed;top:-30px;width:14px;height:18px;
+    background:linear-gradient(135deg,#ffb3d9,#ffd6e8 60%,#fff0f5);
+    border-radius:150% 0 150% 0;
+    pointer-events:none;z-index:5;
+    box-shadow:inset -1px -2px 3px rgba(255,107,157,.3);
+    animation:fall linear forwards;}
+  body[data-time=night] .petal{background:linear-gradient(135deg,#d9b3ff,#e6d6ff 60%,#f0e6ff);
+    box-shadow:0 0 6px rgba(200,180,255,.4),inset -1px -2px 3px rgba(180,140,220,.4)}
+  @keyframes fall{
+    0%  {transform:translate(0,0) rotate(0)        ;opacity:0}
+    8%  {opacity:.9}
+    100%{transform:translate(var(--sway,80px),110vh) rotate(720deg);opacity:.7}
+  }
+
+  /* Stars (night only) */
+  .star{position:fixed;background:white;border-radius:50%;
+    pointer-events:none;z-index:2;animation:twinkle 3s ease-in-out infinite;}
+  @keyframes twinkle{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.3);box-shadow:0 0 6px #fff,0 0 12px #fff}}
+
+  /* Click hearts */
+  .heart{position:fixed;pointer-events:none;z-index:100;
+    user-select:none;font-weight:bold;
+    animation:floatup 1.6s ease-out forwards;}
+  @keyframes floatup{
+    0%  {opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(0)}
+    15% {opacity:1;transform:translate(-50%,-60%) scale(1.3) rotate(-10deg)}
+    100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),-220px) scale(.7) rotate(var(--rot,20deg))}
+  }
 </style>
 </head>
 <body>
-<div class="card">
+<div class="card" id="card">
   <div class="face" id="face"></div>
   <div class="hello" id="hello"></div>
   <div class="msg" id="msg"></div>
-  <button class="refresh" onclick="render()">再来一条 </button>
+  <button class="refresh" id="refresh">再来一条</button>
   <div class="footer">made with love by hanxingjia</div>
 </div>
 <script>
@@ -39,15 +87,105 @@ const msgs=["你今天看起来超棒！","记得喝水哦~","小小的鼓励送
   "今天也要元气满满呀！","工作累了就抬头看看窗外吧~","无论今天怎样，你都很可爱！",
   "嘿嘿，被我抓到啦！要开心一点哦~","深呼吸，慢慢来，一切都会好的。",
   "你已经做得很好了，别太苛责自己 :)","一杯热茶送给屏幕前的你"];
+
+function timeBucket(h){
+  if(h>=5 && h<11)  return ["morning","早上好"];
+  if(h>=11 && h<14) return ["noon","中午好"];
+  if(h>=14 && h<18) return ["afternoon","下午好"];
+  if(h>=18 && h<23) return ["evening","晚上好"];
+  return ["night","夜深啦"];
+}
+
 function render(){
   const h=new Date().getHours();
-  const t=h<11?"早上好":h<14?"中午好":h<18?"下午好":h<23?"晚上好":"夜深啦";
+  const [bucket,t]=timeBucket(h);
+  document.body.dataset.time=bucket;
   const name=new URLSearchParams(location.search).get("name")||"朋友";
   document.getElementById("face").textContent=faces[Math.floor(Math.random()*faces.length)];
-  document.getElementById("hello").innerHTML=`${t}，<span class="name">${name}</span>！`;
+  // XSS-safe: build with DOM, no innerHTML on user input
+  const helloEl=document.getElementById("hello");
+  helloEl.textContent=t+"，";
+  const ns=document.createElement("span");
+  ns.className="name"; ns.textContent=name;
+  helloEl.append(ns,"！");
   document.getElementById("msg").textContent=msgs[Math.floor(Math.random()*msgs.length)];
 }
+
+// ---- Sakura petals (always on) ----
+function spawnPetal(){
+  const p=document.createElement("div");
+  p.className="petal";
+  p.style.left=Math.random()*100+"vw";
+  const dur=8+Math.random()*9;
+  p.style.animationDuration=dur+"s";
+  p.style.setProperty("--sway",(Math.random()*300-150)+"px");
+  const scale=.6+Math.random()*.8;
+  p.style.width=(12*scale)+"px";
+  p.style.height=(16*scale)+"px";
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(),dur*1000);
+}
+setInterval(spawnPetal,380);
+for(let i=0;i<12;i++) setTimeout(spawnPetal,i*180);
+
+// ---- Stars (night only) ----
+function ensureStars(){
+  const existing=document.querySelectorAll(".star");
+  if(document.body.dataset.time!=="night"){
+    existing.forEach(s=>s.remove());
+    return;
+  }
+  if(existing.length>=80) return;
+  const needed=80-existing.length;
+  for(let i=0;i<needed;i++){
+    const s=document.createElement("div");
+    s.className="star";
+    s.style.left=Math.random()*100+"vw";
+    s.style.top=Math.random()*100+"vh";
+    s.style.animationDelay=Math.random()*3+"s";
+    const size=1+Math.random()*2.5;
+    s.style.width=s.style.height=size+"px";
+    document.body.appendChild(s);
+  }
+}
+setInterval(ensureStars,2000);
+
+// ---- Hearts on click (anywhere) ----
+const heartChars=["♥","♡","❀","✿"];
+const heartColors=["#ff6b9d","#ff8fab","#ffb3c6","#ffd6e8","#ff5491"];
+document.addEventListener("click",e=>{
+  const count=3+Math.floor(Math.random()*3);
+  for(let i=0;i<count;i++){
+    const h=document.createElement("div");
+    h.className="heart";
+    h.textContent=heartChars[Math.floor(Math.random()*heartChars.length)];
+    h.style.left=(e.clientX+(Math.random()*30-15))+"px";
+    h.style.top=(e.clientY+(Math.random()*20-10))+"px";
+    h.style.color=heartColors[Math.floor(Math.random()*heartColors.length)];
+    h.style.fontSize=(20+Math.random()*18)+"px";
+    h.style.setProperty("--dx",(Math.random()*120-60)+"px");
+    h.style.setProperty("--rot",(Math.random()*60-30)+"deg");
+    document.body.appendChild(h);
+    setTimeout(()=>h.remove(),1600);
+  }
+});
+
+// Re-check time bucket each minute (page might stay open across boundaries)
+setInterval(()=>{
+  const [bucket]=timeBucket(new Date().getHours());
+  if(document.body.dataset.time!==bucket){
+    document.body.dataset.time=bucket;
+    ensureStars();
+  }
+},60000);
+
+// Refresh button changes message without firing the click-heart effect everywhere
+document.getElementById("refresh").addEventListener("click",e=>{
+  render();
+});
+
 render();
+ensureStars();
 </script>
 </body>
 </html>
