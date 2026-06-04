@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>来自 hanxingjia 的小问候 ✿</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(135deg,#ffd6e8 0%,#c5e0ff 50%,#ffe5b4 100%);
+    background-size:400% 400%;animation:bg 12s ease infinite;}
+  @keyframes bg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+  .card{background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
+    border-radius:24px;padding:48px 56px;box-shadow:0 20px 60px rgba(0,0,0,.08);
+    text-align:center;max-width:90vw;animation:pop .6s cubic-bezier(.34,1.56,.64,1);}
+  @keyframes pop{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .face{font-size:48px;margin-bottom:16px;letter-spacing:2px;}
+  .hello{font-size:28px;color:#444;margin:8px 0;}
+  .name{color:#ff6b9d;font-weight:600;}
+  .msg{font-size:18px;color:#666;margin-top:20px;line-height:1.6;}
+  .refresh{margin-top:32px;padding:10px 24px;border:none;border-radius:999px;
+    background:#ff6b9d;color:white;font-size:14px;cursor:pointer;transition:transform .2s;}
+  .refresh:hover{transform:scale(1.05);background:#ff5491;}
+  .footer{margin-top:20px;font-size:12px;color:#aaa;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="face" id="face"></div>
+  <div class="hello" id="hello"></div>
+  <div class="msg" id="msg"></div>
+  <button class="refresh" onclick="render()">再来一条 </button>
+  <div class="footer">made with love by hanxingjia</div>
+</div>
+<script>
+const faces=["(´｡• ᵕ •｡`)","( ˘ ³˘)","ヾ(•ω•`)o","(=^･ω･^=)","ฅ^•ﻌ•^ฅ",
+  "(*≧ω≦*)","(づ｡◕‿‿◕｡)づ","(✿◠‿◠)","(っ´ω`c)","ʕ•ᴥ•ʔ"];
+const msgs=["你今天看起来超棒！","记得喝水哦~","小小的鼓励送给你：你可以的！",
+  "今天也要元气满满呀！","工作累了就抬头看看窗外吧~","无论今天怎样，你都很可爱！",
+  "嘿嘿，被我抓到啦！要开心一点哦~","深呼吸，慢慢来，一切都会好的。",
+  "你已经做得很好了，别太苛责自己 :)","一杯热茶送给屏幕前的你"];
+function render(){
+  const h=new Date().getHours();
+  const t=h<11?"早上好":h<14?"中午好":h<18?"下午好":h<23?"晚上好":"夜深啦";
+  const name=new URLSearchParams(location.search).get("name")||"朋友";
+  document.getElementById("face").textContent=faces[Math.floor(Math.random()*faces.length)];
+  document.getElementById("hello").innerHTML=`${t}，<span class="name">${name}</span>！`;
+  document.getElementById("msg").textContent=msgs[Math.floor(Math.random()*msgs.length)];
+}
+render();
+</script>
+</body>
+</html>
