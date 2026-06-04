@@ -31,7 +31,9 @@
   body[data-time=night] .footer{color:#9090c0}
   body[data-time=evening] .card{background:rgba(255,255,255,.78)}
   @keyframes pop{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
-  .face{font-size:48px;margin-bottom:16px;letter-spacing:2px;}
+  .face{font-size:56px;margin-bottom:16px;letter-spacing:6px;
+    display:inline-block;animation:floaty 3.6s ease-in-out infinite;}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
   .hello{font-size:28px;color:#444;margin:8px 0;}
   .name{color:#ff6b9d;font-weight:600;}
   body[data-time=night] .name{color:#ffb3d9;text-shadow:0 0 8px rgba(255,150,200,.5)}
@@ -129,8 +131,12 @@
 </div>
 <div class="visits" id="visits"></div>
 <script>
-const faces=["(´｡• ᵕ •｡`)","( ˘ ³˘)","ヾ(•ω•`)o","(=^･ω･^=)","ฅ^•ﻌ•^ฅ",
-  "(*≧ω≦*)","(づ｡◕‿‿◕｡)づ","(✿◠‿◠)","(っ´ω`c)","ʕ•ᴥ•ʔ"];
+const faces=[
+  "🐱✨","🐰💕","🦊🌸","🐻🍯","🐼🍃","🦄✨","🦔🌿",
+  "🌸🦋","🌺💫","🌷✨","🌻☀️","🌿💫",
+  "🍵🌿","☕✨","🧋💕","🍰✨","🍑💕",
+  "🌙✨","⭐💫","🎀💕","🌈✨",
+];
 const msgs=[
   "你看起来很忙，其实你只是在装忙",
   "钉钉一响，黄金万两",
