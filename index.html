@@ -46,6 +46,26 @@
   .game:hover{transform:scale(1.05);background:#fff;}
   body[data-time=night] .game{background:rgba(255,255,255,.1);color:#ffb3d9;border-color:rgba(255,179,217,.4);}
   .footer{margin-top:20px;font-size:12px;color:#aaa;}
+
+  /* Countdown to off-work */
+  .countdown{margin-top:26px;padding:14px 18px;border-radius:16px;
+    background:rgba(255,107,157,.08);border:1px dashed rgba(255,107,157,.25);
+    text-align:left;}
+  .countdown .row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;}
+  .cdlabel{font-size:12px;color:#999;letter-spacing:1.5px;}
+  .cdtime{font-family:"SF Mono","Menlo","Consolas",monospace;font-weight:600;
+    font-size:26px;color:#ff5491;letter-spacing:1px;}
+  .cdbar{height:5px;background:rgba(255,107,157,.12);border-radius:999px;
+    margin-top:8px;overflow:hidden;}
+  .cdbar>div{height:100%;background:linear-gradient(90deg,#ffb3d9,#ff6b9d);
+    border-radius:999px;transition:width .4s;width:0;}
+  .cdquip{margin-top:8px;font-size:12px;color:#a48fa8;font-style:italic;
+    min-height:16px;}
+  body[data-time=night] .countdown{background:rgba(255,107,157,.1);
+    border-color:rgba(255,179,217,.3);}
+  body[data-time=night] .cdlabel{color:#a8a8c8;}
+  body[data-time=night] .cdtime{color:#ffb3d9;text-shadow:0 0 8px rgba(255,150,200,.4);}
+  body[data-time=night] .cdquip{color:#b09ad0;}
   .visits{position:fixed;top:14px;right:16px;z-index:50;
     padding:6px 14px;border-radius:999px;
     background:rgba(255,255,255,.7);backdrop-filter:blur(10px);
@@ -94,10 +114,19 @@
   <div class="face" id="face"></div>
   <div class="hello" id="hello"></div>
   <div class="msg" id="msg"></div>
+
+  <div class="countdown" id="cd">
+    <div class="row">
+      <span class="cdlabel" id="cdLabel">距下班</span>
+      <span class="cdtime"  id="cdTime">--:--:--</span>
+    </div>
+    <div class="cdbar"><div id="cdProg"></div></div>
+    <div class="cdquip" id="cdQuip"></div>
+  </div>
+
   <div class="actions">
     <button class="refresh" id="refresh">再来一条</button>
     <a class="game" href="game.html">✈ 摸鱼</a>
-    <a class="game" href="countdown.html">⏰ 距下班</a>
     <a class="game" href="pet.html">🐱 云养猫</a>
   </div>
   <div class="footer">made with love by hanxingjia</div>
@@ -209,6 +238,136 @@ document.getElementById("refresh").addEventListener("click",e=>{
 
 render();
 ensureStars();
+
+// ---- Countdown to off-work ----
+const WORK_START = 9, WORK_END = 18;
+const cdLabel = document.getElementById("cdLabel");
+const cdTime  = document.getElementById("cdTime");
+const cdProg  = document.getElementById("cdProg");
+const cdQuip  = document.getElementById("cdQuip");
+
+const QUIPS_WORK = [
+  "你看起来很忙，其实你只是在装忙",
+  "工位是租的，灵魂是自己的",
+  "钱包在等你下班，工作在等你接着干",
+  "活儿可以摸，但样子要装",
+  "上班 8 小时，焦虑 24 小时",
+  "你不是在工作，是在为下班做准备",
+  "今天又被工作偷走了一天",
+  "你的笑容是 OKR 偷走的",
+  "上班如上坟，下班如重生",
+  "再坚持一下下，房贷也在坚持",
+  "假装看屏幕的样子真专业",
+  "时间正在以每秒一秒的速度老去你",
+];
+const QUIPS_WORK_LAST_HOUR = [
+  "胜利在望，请勿现在崩溃",
+  "最后一小时，演技要更精湛",
+  "再 1 小时，世界还你",
+  "马上就能脱牛马籍了",
+];
+const QUIPS_WORK_LAST_10 = [
+  "起立，准备冲，姿势要优雅",
+  "把鼠标移到关机键上",
+  "下班的脚踏车已经就位",
+  "10 分钟后，你将与公司无关",
+];
+const QUIPS_WEEKEND = [
+  "今天的你没有 KPI 也没有微信群",
+  "周末值班也是周末（雾",
+  "假装明天没有周一",
+  "今天可以理直气壮地不回工作消息",
+  "醒不来就别醒",
+  "公司？不熟",
+];
+const QUIPS_BEFORE = [
+  "公司在催，被窝在挽留",
+  "通勤的你像被打包的快递",
+  "再赖一会儿，反正打卡也是迟到",
+  "今天又是被闹钟杀死又复活的一天",
+  "等会儿到工位，先泡个咖啡装满血",
+];
+const QUIPS_OFF = [
+  "下班了，从牛马切换为人类",
+  "工位的灯灭了，你的灵魂亮了",
+  "晚安，我和公司不熟",
+  "今天的工作让今天的你解决，明天再说",
+  "夺门而出的成功率：100%",
+];
+
+let cdState = null;
+const pad = n => String(Math.max(0, Math.floor(n))).padStart(2, "0");
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+function cdTick(){
+  const now = new Date();
+  const dow = now.getDay();
+  const start = new Date(now); start.setHours(WORK_START,0,0,0);
+  const end   = new Date(now); end.setHours(WORK_END,0,0,0);
+
+  let state, remainMs = 0, prog = 0;
+  if (dow === 0 || dow === 6) state = "weekend";
+  else if (now < start)       state = "before";
+  else if (now < end)         state = "working";
+  else                        state = "off";
+
+  if (state === "working") {
+    remainMs = end - now;
+    prog = (now - start) / (end - start);
+  } else if (state === "before") {
+    remainMs = start - now;
+  } else if (state === "off") {
+    prog = 1;
+  }
+
+  let label, timeText;
+  if (state === "weekend") {
+    label = "今天周末"; timeText = "(´｡• ᵕ •｡`)";
+    cdProg.style.width = "0%";
+  } else if (state === "before") {
+    label = "距上班还有";
+    const s = remainMs / 1000;
+    timeText = `${pad(s/3600)}:${pad((s/60)%60)}:${pad(s%60)}`;
+    cdProg.style.width = "0%";
+  } else if (state === "working") {
+    label = "距下班还有";
+    const s = remainMs / 1000;
+    timeText = `${pad(s/3600)}:${pad((s/60)%60)}:${pad(s%60)}`;
+    cdProg.style.width = (prog*100).toFixed(2) + "%";
+  } else {
+    label = "下班啦"; timeText = "🎉";
+    cdProg.style.width = "100%";
+  }
+  cdLabel.textContent = label;
+  cdTime.textContent  = timeText;
+
+  // quip — change on state transition, or when working state crosses last-hour/last-10
+  let phase = state;
+  if (state === "working") {
+    const remainMin = remainMs / 60000;
+    if (remainMin <= 10)     phase = "working_10";
+    else if (remainMin <= 60) phase = "working_60";
+  }
+  if (phase !== cdState) {
+    const pool = phase === "working"    ? QUIPS_WORK
+               : phase === "working_60" ? QUIPS_WORK_LAST_HOUR
+               : phase === "working_10" ? QUIPS_WORK_LAST_10
+               : phase === "weekend"    ? QUIPS_WEEKEND
+               : phase === "before"     ? QUIPS_BEFORE
+               : QUIPS_OFF;
+    cdQuip.textContent = pick(pool);
+    cdState = phase;
+  }
+}
+cdTick();
+setInterval(cdTick, 1000);
+
+// re-roll a quip when clicking the countdown block (for endless 贱话)
+document.getElementById("cd").addEventListener("click", e => {
+  e.stopPropagation(); // don't also spawn click-hearts inside the block
+  cdState = null;
+  cdTick();
+});
 
 // ---- Visit counter (total only) ----
 async function loadVisits(){
