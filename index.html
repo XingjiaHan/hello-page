@@ -46,6 +46,12 @@
   .game:hover{transform:scale(1.05);background:#fff;}
   body[data-time=night] .game{background:rgba(255,255,255,.1);color:#ffb3d9;border-color:rgba(255,179,217,.4);}
   .footer{margin-top:20px;font-size:12px;color:#aaa;}
+  .visits{margin-top:14px;font-size:12px;color:#b4a0b8;letter-spacing:.3px;
+    transition:opacity .6s;opacity:0;}
+  .visits.show{opacity:1;}
+  .visits b{color:#ff6b9d;font-weight:600;}
+  body[data-time=night] .visits{color:#9090c0;}
+  body[data-time=night] .visits b{color:#ffb3d9;}
 
   /* Sakura petals */
   .petal{position:fixed;top:-30px;width:14px;height:18px;
@@ -87,6 +93,7 @@
     <button class="refresh" id="refresh">再来一条</button>
     <a class="game" href="game.html">✈ 摸鱼一下</a>
   </div>
+  <div class="visits" id="visits"></div>
   <div class="footer">made with love by hanxingjia</div>
 </div>
 <script>
@@ -195,6 +202,28 @@ document.getElementById("refresh").addEventListener("click",e=>{
 
 render();
 ensureStars();
+
+// ---- Visit counter ----
+async function loadVisits(){
+  const el = document.getElementById("visits");
+  // personal count via localStorage (always works)
+  const my = (parseInt(localStorage.getItem("hello_visits")||"0",10) || 0) + 1;
+  localStorage.setItem("hello_visits", String(my));
+
+  // global count via abacus (free public counter; key is namespaced to this site)
+  let total = null;
+  try{
+    const r = await fetch("https://abacus.jasoncameron.dev/hit/hello-page-xingjia/main",
+                          {cache:"no-store"});
+    if(r.ok){ const j = await r.json(); total = j.value; }
+  }catch(_){ /* offline / blocked / API down — fall through */ }
+
+  const mineTxt = my===1 ? "首次到访，欢迎你 ✿"
+                         : `这是你的第 <b>${my}</b> 次到访`;
+  el.innerHTML = (total!=null ? `已被翻过 <b>${total}</b> 次 ・ ` : "") + mineTxt;
+  el.classList.add("show");
+}
+loadVisits();
 </script>
 </body>
 </html>
