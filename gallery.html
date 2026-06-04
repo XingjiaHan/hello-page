@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>表情包小库 ✿ by hanxingjia</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;min-height:100vh;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(135deg,#ffe5f0,#fff5e6,#e6f0ff);
+    background-size:300% 300%;animation:bg 18s ease infinite;
+    color:#444;}
+  @keyframes bg{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+  .topbar{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;
+    padding:12px 18px;background:rgba(255,255,255,.55);backdrop-filter:blur(12px);z-index:30;
+    border-bottom:1px solid rgba(255,255,255,.4);}
+  .back{color:#666;text-decoration:none;font-size:14px;}
+  .contribute{padding:8px 18px;border:none;border-radius:999px;
+    background:#ff6b9d;color:#fff;font-size:14px;cursor:pointer;
+    box-shadow:0 4px 14px rgba(255,107,157,.3);}
+  .contribute:hover{background:#ff5491;}
+
+  main{max-width:1100px;margin:0 auto;padding:24px 18px 60px;}
+  h1{font-size:24px;margin:8px 0 4px;text-align:center;color:#555;}
+  .sub{text-align:center;color:#999;font-size:13px;margin-bottom:24px;}
+
+  .section{margin-top:28px;}
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:14px;padding:0 4px;}
+  .section-title{font-size:16px;color:#555;font-weight:600;}
+  .section-title .badge{margin-left:6px;font-size:12px;color:#ff6b9d;font-weight:500;}
+  .section-note{font-size:12px;color:#aaa;}
+
+  .grid{display:grid;gap:14px;
+    grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+  .card{position:relative;background:rgba(255,255,255,.7);border-radius:14px;
+    overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.06);
+    transition:transform .2s,box-shadow .2s;}
+  .card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.1);}
+  .card .img-wrap{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    background:#fafafa;overflow:hidden;}
+  .card img{width:100%;height:100%;object-fit:contain;cursor:zoom-in;}
+  .card .meta{padding:8px 10px;display:flex;justify-content:space-between;align-items:center;
+    font-size:12px;color:#999;}
+  .card .uploader{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dl{border:none;background:rgba(255,107,157,.12);color:#ff5491;
+    padding:4px 10px;border-radius:999px;font-size:11px;cursor:pointer;
+    text-decoration:none;display:inline-block;}
+  .dl:hover{background:#ff6b9d;color:#fff;}
+
+  .empty{padding:30px;text-align:center;color:#bbb;font-size:13px;
+    background:rgba(255,255,255,.4);border-radius:14px;border:1px dashed rgba(0,0,0,.06);}
+
+  /* Lightbox */
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.7);
+    display:none;align-items:center;justify-content:center;z-index:100;
+    padding:20px;cursor:zoom-out;}
+  .lightbox.show{display:flex;}
+  .lightbox img{max-width:90vw;max-height:80vh;border-radius:12px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .lightbox .lb-actions{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    display:flex;gap:10px;}
+  .lightbox .lb-actions a,.lightbox .lb-actions button{
+    padding:8px 18px;border:none;border-radius:999px;
+    background:#ff6b9d;color:#fff;font-size:14px;cursor:pointer;text-decoration:none;
+    box-shadow:0 4px 14px rgba(0,0,0,.3);}
+
+  /* Upload modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);
+    display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+  .modal.show{display:flex;}
+  .modal .box{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:380px;
+    box-shadow:0 30px 80px rgba(0,0,0,.3);}
+  .modal h2{margin:0 0 4px;font-size:18px;color:#444;}
+  .modal .hint{color:#999;font-size:12px;margin-bottom:16px;}
+  .modal label{display:block;font-size:12px;color:#888;margin-bottom:4px;}
+  .modal input[type=text]{width:100%;padding:8px 12px;border:1px solid #eee;
+    border-radius:8px;font-size:14px;outline:none;margin-bottom:14px;font-family:inherit;}
+  .modal input[type=text]:focus{border-color:#ff6b9d;}
+  .drop{border:2px dashed #ffcadb;border-radius:12px;padding:18px;
+    text-align:center;color:#aaa;font-size:13px;cursor:pointer;
+    background:#fff8fb;transition:background .2s,border-color .2s;margin-bottom:14px;}
+  .drop:hover,.drop.dragover{background:#fff0f6;border-color:#ff6b9d;color:#888;}
+  .drop input{display:none;}
+  .preview{display:none;margin-bottom:14px;text-align:center;}
+  .preview img{max-width:100%;max-height:200px;border-radius:10px;
+    box-shadow:0 4px 14px rgba(0,0,0,.1);}
+  .preview .fname{font-size:11px;color:#bbb;margin-top:6px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .modal .btns{display:flex;gap:8px;justify-content:flex-end;}
+  .modal .btns button{padding:8px 18px;border:none;border-radius:999px;
+    font-size:14px;cursor:pointer;}
+  .modal .cancel{background:#f0f0f0;color:#666;}
+  .modal .submit{background:#ff6b9d;color:#fff;}
+  .modal .submit:disabled{background:#ddd;cursor:not-allowed;}
+  .modal .msg{font-size:12px;color:#ff5491;min-height:16px;margin-bottom:8px;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);
+    background:rgba(40,40,60,.92);color:#fff;padding:10px 20px;border-radius:999px;
+    font-size:13px;opacity:0;transition:all .35s;z-index:300;pointer-events:none;
+    box-shadow:0 8px 24px rgba(0,0,0,.3);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .footer{text-align:center;color:#bbb;font-size:11px;margin-top:30px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a class="back" href="./">← 回首页</a>
+  <button class="contribute" id="contributeBtn">+ 我也想贡献</button>
+</div>
+
+<main>
+  <h1>表情包小库 🐾</h1>
+  <p class="sub">右键 / 长按图片可保存，喜欢就拿走~</p>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="section-title">官方 <span class="badge" id="officialCount"></span></span>
+      <span class="section-note">主页右侧随机展示</span>
+    </div>
+    <div class="grid" id="officialGrid"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <span class="section-title">投稿区 <span class="badge" id="contribCount"></span></span>
+      <span class="section-note">大家分享 · 不参与主页随机</span>
+    </div>
+    <div id="contribWrap"></div>
+  </section>
+
+  <div class="footer">made with love by hanxingjia</div>
+</main>
+
+<div class="lightbox" id="lightbox">
+  <img id="lbImg" alt="">
+  <div class="lb-actions">
+    <a id="lbDownload" download>下载</a>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box" onclick="event.stopPropagation()">
+    <h2>贡献一张表情包</h2>
+    <div class="hint">上传后会出现在「投稿区」让大家自取（不参与主页随机）</div>
+    <label class="drop" id="drop">
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,image/webp">
+      <span id="dropHint">点这里选图，或把图拖进来 · 最大 5MB</span>
+    </label>
+    <div class="preview" id="preview">
+      <img id="previewImg" alt="">
+      <div class="fname" id="fname"></div>
+    </div>
+    <label>昵称（可选）</label>
+    <input type="text" id="nickname" maxlength="20" placeholder="留个名字，让大家知道是谁送的">
+    <div class="msg" id="msg"></div>
+    <div class="btns">
+      <button class="cancel" id="cancelBtn">取消</button>
+      <button class="submit" id="submitBtn" disabled>提交</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// === Config: set this to your deployed Cloudflare Worker URL ===
+// Example: "https://hello-page-api.<your-subdomain>.workers.dev"
+const API_BASE = "";
+
+const OFFICIAL_COUNT = 10;
+
+const officialGrid = document.getElementById("officialGrid");
+const officialCount = document.getElementById("officialCount");
+const contribWrap = document.getElementById("contribWrap");
+const contribCount = document.getElementById("contribCount");
+const lightbox = document.getElementById("lightbox");
+const lbImg = document.getElementById("lbImg");
+const lbDownload = document.getElementById("lbDownload");
+const modal = document.getElementById("modal");
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+const preview = document.getElementById("preview");
+const previewImg = document.getElementById("previewImg");
+const fname = document.getElementById("fname");
+const nickname = document.getElementById("nickname");
+const submitBtn = document.getElementById("submitBtn");
+const cancelBtn = document.getElementById("cancelBtn");
+const contributeBtn = document.getElementById("contributeBtn");
+const msgEl = document.getElementById("msg");
+const toast = document.getElementById("toast");
+const dropHint = document.getElementById("dropHint");
+
+let picked = null;
+
+function showToast(text){
+  toast.textContent = text;
+  toast.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+function suggestedName(src){
+  const base = src.split("/").pop().split("?")[0];
+  return base || "meme.jpg";
+}
+
+function makeCard(src, uploader){
+  const card = document.createElement("div");
+  card.className = "card";
+  const wrap = document.createElement("div");
+  wrap.className = "img-wrap";
+  const img = document.createElement("img");
+  img.src = src;
+  img.loading = "lazy";
+  img.alt = "表情包";
+  img.addEventListener("click", () => openLightbox(src));
+  wrap.appendChild(img);
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const who = document.createElement("span");
+  who.className = "uploader";
+  who.textContent = uploader || "";
+  const dl = document.createElement("a");
+  dl.className = "dl";
+  dl.href = src;
+  dl.download = suggestedName(src);
+  dl.textContent = "下载";
+  dl.addEventListener("click", e => e.stopPropagation());
+  meta.append(who, dl);
+
+  card.append(wrap, meta);
+  return card;
+}
+
+function loadOfficial(){
+  officialCount.textContent = `· ${OFFICIAL_COUNT} 张`;
+  for (let i = 1; i <= OFFICIAL_COUNT; i++){
+    const n = String(i).padStart(2, "0");
+    officialGrid.appendChild(makeCard(`assets/memes/meme-${n}.jpg`, ""));
+  }
+}
+
+async function loadContrib(){
+  if (!API_BASE){
+    contribWrap.innerHTML = `<div class="empty">
+      投稿功能即将上线 · 配置 Worker 后这里会显示大家投稿的图~
+    </div>`;
+    contribCount.textContent = "";
+    return;
+  }
+  try{
+    const r = await fetch(API_BASE + "/list", { cache: "no-store" });
+    if (!r.ok) throw new Error("list " + r.status);
+    const j = await r.json();
+    const items = j.items || [];
+    contribCount.textContent = `· ${items.length} 张`;
+    if (items.length === 0){
+      contribWrap.innerHTML = `<div class="empty">还没人投稿，做第一个 🌟</div>`;
+      return;
+    }
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    for (const it of items){
+      grid.appendChild(makeCard(API_BASE + it.url, "by " + (it.nickname || "匿名")));
+    }
+    contribWrap.innerHTML = "";
+    contribWrap.appendChild(grid);
+  }catch(e){
+    contribWrap.innerHTML = `<div class="empty">加载投稿失败 · ${e.message}</div>`;
+  }
+}
+
+function openLightbox(src){
+  lbImg.src = src;
+  lbDownload.href = src;
+  lbDownload.download = suggestedName(src);
+  lightbox.classList.add("show");
+}
+lightbox.addEventListener("click", e => {
+  if (e.target === lightbox || e.target === lbImg){
+    lightbox.classList.remove("show");
+  }
+});
+
+// ---- Upload modal ----
+contributeBtn.addEventListener("click", () => {
+  resetModal();
+  modal.classList.add("show");
+});
+cancelBtn.addEventListener("click", () => modal.classList.remove("show"));
+modal.addEventListener("click", e => {
+  if (e.target === modal) modal.classList.remove("show");
+});
+
+function resetModal(){
+  picked = null;
+  fileInput.value = "";
+  nickname.value = "";
+  preview.style.display = "none";
+  previewImg.src = "";
+  fname.textContent = "";
+  msgEl.textContent = "";
+  submitBtn.disabled = true;
+  dropHint.textContent = "点这里选图，或把图拖进来 · 最大 5MB";
+}
+
+function setPicked(file){
+  if (!file) return;
+  if (!/^image\/(jpeg|png|gif|webp)$/.test(file.type)){
+    msgEl.textContent = "只支持 jpg / png / gif / webp";
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024){
+    msgEl.textContent = "图片太大啦，最大 5MB";
+    return;
+  }
+  picked = file;
+  msgEl.textContent = "";
+  const url = URL.createObjectURL(file);
+  previewImg.src = url;
+  fname.textContent = `${file.name} · ${(file.size/1024).toFixed(0)} KB`;
+  preview.style.display = "block";
+  submitBtn.disabled = false;
+  dropHint.textContent = "换一张？再点这里";
+}
+
+fileInput.addEventListener("change", e => setPicked(e.target.files[0]));
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("dragover"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+drop.addEventListener("drop", e => {
+  e.preventDefault();
+  drop.classList.remove("dragover");
+  setPicked(e.dataTransfer.files[0]);
+});
+
+submitBtn.addEventListener("click", async () => {
+  if (!picked) return;
+  if (!API_BASE){
+    msgEl.textContent = "后端还没配置，暂时无法上传";
+    return;
+  }
+  submitBtn.disabled = true;
+  submitBtn.textContent = "上传中...";
+  try{
+    const fd = new FormData();
+    fd.append("file", picked);
+    fd.append("nickname", nickname.value.trim());
+    const r = await fetch(API_BASE + "/upload", { method: "POST", body: fd });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.error){
+      throw new Error(j.error || ("HTTP " + r.status));
+    }
+    modal.classList.remove("show");
+    showToast("投稿成功，谢谢分享 ♥");
+    loadContrib();
+  }catch(e){
+    msgEl.textContent = "上传失败：" + e.message;
+    submitBtn.disabled = false;
+    submitBtn.textContent = "提交";
+  }
+});
+
+// init
+loadOfficial();
+loadContrib();
+</script>
+</body>
+</html>
