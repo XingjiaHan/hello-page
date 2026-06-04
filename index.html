@@ -32,6 +32,10 @@
   body[data-time=evening] .card{background:rgba(255,255,255,.78)}
   @keyframes pop{from{opacity:0;transform:scale(.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
   .face{font-size:48px;margin-bottom:16px;letter-spacing:2px;}
+  .face img{display:block;margin:0 auto;max-width:160px;max-height:160px;
+    border-radius:18px;box-shadow:0 6px 18px rgba(0,0,0,.12);
+    object-fit:contain;}
+  body[data-time=night] .face img{box-shadow:0 6px 18px rgba(255,255,255,.08),0 0 30px rgba(180,150,255,.15)}
   .hello{font-size:28px;color:#444;margin:8px 0;}
   .name{color:#ff6b9d;font-weight:600;}
   body[data-time=night] .name{color:#ffb3d9;text-shadow:0 0 8px rgba(255,150,200,.5)}
@@ -129,7 +133,11 @@
 </div>
 <div class="visits" id="visits"></div>
 <script>
-const faces=["ฅ^•ﻌ•^ฅ"];
+const MEME_COUNT=10;
+function pickMeme(){
+  const n=String(1+Math.floor(Math.random()*MEME_COUNT)).padStart(2,"0");
+  return `assets/memes/meme-${n}.jpg`;
+}
 const msgs=[
   "你看起来很忙，其实你只是在装忙",
   "钉钉一响，黄金万两",
@@ -149,7 +157,12 @@ function render(){
   const [bucket,t]=timeBucket(h);
   document.body.dataset.time=bucket;
   const name=new URLSearchParams(location.search).get("name")||"朋友";
-  document.getElementById("face").textContent=faces[Math.floor(Math.random()*faces.length)];
+  const faceEl=document.getElementById("face");
+  faceEl.textContent="";
+  const img=document.createElement("img");
+  img.src=pickMeme();
+  img.alt="表情包";
+  faceEl.appendChild(img);
   // XSS-safe: build with DOM, no innerHTML on user input
   const helloEl=document.getElementById("hello");
   helloEl.textContent=t+"，";
